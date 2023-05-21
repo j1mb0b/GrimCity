@@ -1,4 +1,0 @@
-Config = {}
-
-Config.Locale = 'fr'
-

@@ -1,0 +1,37 @@
+version: '3'
+services:
+  fivem:
+    image: henkallsn/fivem_esx_bundle
+    stdin_open: true
+    tty: true
+    volumes:
+      - "/mnt/c/Users/jamie/Projects/NewLife/FiveM:/config"
+      - "/mnt/c/Users/jamie/Projects/NewLife/txData:/txData"
+      - "/mnt/c/Users/jamie/Projects/NewLife/mysql_data:/var/lib/mysql"
+    ports:
+      - "30120:30120"
+      - "30120:30120/udp"
+      - "40120:40120"
+    environment:
+      SERVER_PROFILE: "default"
+      FIVEM_PORT: 30120
+      TXADMIN_PORT: 40120
+      HOST_UID: 1000
+      HOST_GID: 100
+      FIVEM_HOSTNAME: $HOSTNAME
+      FIVEM_LICENCE_KEY: $CFX_API_KEY
+      STEAM_WEBAPIKEY: $STEAM_API_KEY
+      DATABASE_SERVICE_NAME: fivem
+      MYSQL_DATABASE: $DB_NAME
+      MYSQL_USER: $DB_USER
+      MYSQL_PASSWORD: $DB_PASS
+      MYSQL_RANDOM_ROOT_PASSWORD: 0
+      TZ: Europe/Brussels
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    ports:
+      - 8100-8105:80
+    environment:
+      - PMA_HOST=fivem
+    depends_on:
+      - fivem
