@@ -1,0 +1,51 @@
+---
+kind: pipeline
+name: default
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: build
+  pull: always
+  image: spritsail/docker-build
+
+- name: publish
+  pull: always
+  image: spritsail/docker-publish
+  settings:
+    repo: spritsail/fivem
+    tags:
+    - latest
+    - "%label org.label-schema.version"
+    login: {from_secret: docker_login}
+  when:
+    branch:
+    - master
+    event:
+    - push
+
+---
+kind: pipeline
+name: update-readme
+
+steps:
+- name: dockerhub-readme
+  pull: always
+  image: jlesage/drone-push-readme
+  settings:
+    username: {from_secret: docker_username}
+    password: {from_secret: docker_password}
+    repo: spritsail/fivem
+  when:
+    branch:
+    - master
+    event:
+    - push
+
+---
+kind: signature
+hmac: 954c38b43b7e331958a8007a1f966d007e29c546a4c28fee8050e20a03a4a134
+
+...

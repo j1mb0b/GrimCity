@@ -1,166 +1,71 @@
-[hub]: https://hub.docker.com/r/henkallsn/fivem_esx_bundle
-[git]: https://github.com/Andruida/fivem
+[hub]: https://hub.docker.com/r/spritsail/fivem
+[git]: https://github.com/spritsail/fivem
+[drone]: https://drone.spritsail.io/spritsail/fivem
 
-# [henkallsn/fivem_esx_bundle][hub] <img align="right" height="250px" src="https://portforward.com/fivem/fivem-logo.png">
+# [spritsail/fivem][hub]
+
+[![](https://images.microbadger.com/badges/image/spritsail/fivem.svg)](https://microbadger.com/images/spritsail/fivem)
+[![Latest Version](https://images.microbadger.com/badges/version/spritsail/fivem.svg)][hub]
+[![Git Commit](https://images.microbadger.com/badges/commit/spritsail/fivem.svg)][git]
+[![Docker Pulls](https://img.shields.io/docker/pulls/spritsail/fivem.svg)][hub]
+[![Docker Stars](https://img.shields.io/docker/stars/spritsail/fivem.svg)][hub]
+[![Build Status](https://drone.spritsail.io/api/badges/spritsail/fivem/status.svg)][drone]
 
 This docker image allows you to run a server for FiveM, a modded GTA multiplayer program.
-This image includes [txAdmin](https://github.com/tabarra/txAdmin), an in-browser server management software.
-Upon first run, the configuration is generated in the host mount for the `/config` directory, and for the `/txData` directory (that contains the txAdmin configuration).
-This bundle is made with a inbuild Mariadb server.
-There is also a tag so you can use this without inbuild database. Light version.
+Upon first run, the configuration is generated in the host mount for the `/config` directory.
+The container should be stopped so fivem can be configured to the user requirements in the `server.cfg`.
 
-[dockerhub]: https://hub.docker.com/r/henkallsn/fivem_esx_bundle
-[github]: https://github.com/henkall/fivem
-[![](https://images.microbadger.com/badges/image/henkallsn/fivem_esx_bundle.svg)](https://microbadger.com/images/henkallsn/fivem_esx_bundle)
-[![Latest Version](https://images.microbadger.com/badges/version/henkallsn/fivem_esx_bundle.svg)][dockerhub]
-[![Docker Pulls](https://img.shields.io/docker/pulls/henkallsn/fivem_esx_bundle.svg)][dockerhub]
-[![Docker Stars](https://img.shields.io/docker/stars/henkallsn/fivem_esx_bundle.svg)][dockerhub]
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/paypalme/henkallsn)
+## License Key
 
-## Licence Key
-
-A freely obtained licence key is required to use this server, which should be declared as `FIVEM_LICENCE_KEY`. A tutorial on how to obtain a licence key can be found [here](https://forum.fivem.net/t/explained-how-to-make-add-a-server-key/56120)
+A freely obtained license key is required to use this server, which should be declared as `$LICENSE_KEY`. A tutorial on how to obtain a license key can be found [here](https://forum.fivem.net/t/explained-how-to-make-add-a-server-key/56120).
 
 ## Usage
 
-Use the docker-compose script as provided:
+Use the `docker-compose` script provided if you wish to run a couchdb server with FiveM, else use the line below:
 
 ```sh
----
-version: '2'
-services:
-# -------------------------------------------------------------------
-  fivem:
-    image: henkallsn/fivem_esx_bundle
-    stdin_open: true
-    tty: true
-    volumes:
-      # Remember to change.
-      - "/path/to/resources/folder:/config"
-      # Remember to change.
-      - "/path/to/txAdmin/config:/txData"
-      # Remember to change.
-      - "/path/to/mysql/data:/var/lib/mysql"
-    ports:
-      - "30120:30120"
-      - "30120:30120/udp"
-      - "40120:40120"
-    environment:
-      SERVER_PROFILE: "default"
-      FIVEM_PORT: 30120
-      TXADMIN_PORT: 40120
-      HOST_UID: 1000
-      HOST_GID: 100
-      # Remember to change.
-      FIVEM_HOSTNAME: hostname-to-fivem-gameserver
-      # Remember to change.
-      FIVEM_LICENCE_KEY: license-key-here
-      # Remember to change.
-      STEAM_WEBAPIKEY: api-key-herer
-      # Database stuff ---------------
-      DATABASE_SERVICE_NAME: fivem
-      MYSQL_DATABASE: FiveMESX
-      MYSQL_USER: database username
-      MYSQL_PASSWORD: database password
-      MYSQL_RANDOM_ROOT_PASSWORD: 1
-      # Change to your timezone
-      TZ: Europe/Copenhagen
-# -------------------------------------------------------------------
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    ports:
-      - 8100-8105:80
-    environment:
-      - PMA_HOST=fivem
-    depends_on:
-      - fivem
-# -------------------------------------------------------------------
+docker run -d \
+  --name FiveM \
+  --restart=on-failure \
+  -e LICENSE_KEY=<your-license-here> \
+  -p 30120:30120 \
+  -p 30120:30120/udp \
+  -v /volumes/fivem:/config \
+  -ti \
+  spritsail/fivem
 ```
 
 _It is important that you use `interactive` and `pseudo-tty` options otherwise the container will crash on startup_
 See [issue #3](https://github.com/spritsail/fivem/issues/3)
 
-## Important Tags
-| **Tag name** | **Description** |
-|---|---|
-|latest| This tag is used by default. Use the example above /\\ |
-|light| This tag is if you wan't a database seperate for the FiveM. Use the example below \\/ |
+## Image tags
 
-## Usage of light tag
+This image has two tags - a `latest` tag (the default), based on the most recent FiveM build, and a `stable` tag, based on the "optional" FiveM release. We do not provide an image based on the recommended FiveM release as it is typically too stale.
 
-Use this docker-compose script for the light version:
+### Web UI (txAdmin)
+
+The web UI can be enabled by not passing any `+exec` config to the FXServer binary. This can be achieved by setting the `NO_DEFAULT_CONFIG` environment variable (see below).
+
+`txAdmin` stores it's configuration and database data in `/txData`, so a volume can be set up to persist this data:
 
 ```sh
----
-version: '2'
-services:
-# -------------------------------------------------------------------
-  fivem01:
-    image: henkallsn/fivem_esx_bundle:light
-    stdin_open: true
-    tty: true
-    volumes:
-      # Remember to change.
-      - /path/to/AppData/FiveMESXlight/txData:/txData
-    ports:
-      - 30120:30120
-      - 30120:30120/udp
-      - 40120:40120
-    environment:
-      SERVER_PROFILE: default
-      FIVEM_PORT: 30120
-      WEB_PORT: 40120
-      HOST_UID: 1000
-      HOST_GID: 100
-      # Remember to change.
-      FIVEM_HOSTNAME: FiveMESX-Server
-    depends_on:
-      - mariadb
-# -------------------------------------------------------------------
-  mariadb:
-    image: mariadb
-    volumes:
-      # Remember to change.
-      - /path/to/AppData/FiveMESXlight/mysql:/var/lib/mysql
-    environment:
-      # Remember to change.
-      MYSQL_ROOT_PASSWORD: password
-# -------------------------------------------------------------------
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    ports:
-      - 8100-8105:80
-    environment:
-      PMA_HOST: mariadb
-    depends_on:
-      - mariadb
-# -------------------------------------------------------------------
+docker run -d \
+  --name FiveM \
+  --restart=on-failure \
+  -e LICENSE_KEY=<your-license-here> \
+  -p 30120:30120 \
+  -p 30120:30120/udp \
+  -p 40120:40120 \ # Allow txAdmin's webserver port to be accessible
+  -v /volumes/fivem:/config \
+  -v /volumes/txData:/txData \ # Can use a named volume as well -v txData:/txData \
+  -ti \
+  spritsail/fivem
 ```
-OBS: When using the light version and the txadmin ask for database then you can just write mariadb in stead of localhost in the config.
 
+### Environment Variables
 
-### Environment Varibles
-
-| **Variable name** | **Description** | **Value** |
-|---|---|---|
-| TXADMIN_PORT | Port used for getting to txAdmin webgui. Will be used in the server.cfg. | 40120 |
-| FIVEM_PORT | Port used to connect to the FiveM Server. Will be used in the server.cfg. |  30120 |
-| STEAM_WEBAPIKEY | This is you Steam Web api key. Will be used in the server.cfg.  |  |
-| FIVEM_HOSTNAME | This will be the FiveM Server name in game. Will be used in the server.cfg.  | FiveMESX Game |
-| FIVEM_LICENCE_KEY | This is you FiveM License key wich is needed to start the server. Will be used in the server.cfg.  |  |
-| DATABASE_SERVICE_NAME | Has to be the same as the service name. Will be used in the server.cfg. (connection string) | fivem |
-| MYSQL_DATABASE | This is what you want your database to be named. Will be used in the server.cfg. (connection string) | FiveMESXDB |
-| MYSQL_USER | This is the database user name. Change to what you want. Will be used in the server.cfg. (connection string) | user |
-| MYSQL_PASSWORD | This is the database password. Change to what you want. Will be used in the server.cfg. (connection string) | passsword |
-
+- `LICENSE_KEY` - This is a required variable for the license key needed to start the server.
 - `RCON_PASSWORD` - A password to use for the RCON functionality of the fxserver. If not specified, a random 16 character password is assigned. This is only used upon creation of the default configs
-- `HOST_GID` - The files that are generated by the container will be written with this group ID. You must use numeric IDs. If not specified, will use `0` (root).
-- `HOST_UID` - The files that are generated by the container will be written with this user ID. You must use numeric IDs. If not specified, will use `0` (root).
-- `SERVER_PROFILE` - profile name used by txAdmin. If not specified, will use `dev_server`.
-
-## Credits
-<img align="right" height="200px" src="https://raw.githubusercontent.com/tabarra/txAdmin/master/docs/banner.png">
-
- - This image is based on the [yobasystems/alpine-mariadb](https://hub.docker.com/r/yobasystems/alpine-mariadb) image.
- - Thanks to **tabarra** as the creator and maintainer of the [txAdmin](https://github.com/tabarra/txAdmin) repository!
- - Thanks to [Andruida][git] that I forked this code from
+- `NO_DEFAULT_CONFIG` - Optional. Set to any non-zero value to disable the default exec config. This is required for txAdmin.
+- `NO_LICENSE_KEY` - Optional. Set to any non-zero length value to disable specifying the license key in the environment. Useful if your license key is in a config file.
+- `NO_ONESYNC` - Optional. Set to any non-zero value to disable OneSync being added to the default configs.

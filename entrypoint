@@ -1,132 +1,46 @@
 #!/bin/sh
 
-# Checking environments and setting defaults ----- Start ----- >
-if [ -z "${HOST_UID}" ]; then
-  echo "Host user ID not found in environment. Using root (0)."
-  export HOST_UID=0
+if [ -n "$DEBUG" ]; then
+    set -x
 fi
 
-if [ -z "${HOST_GID}" ]; then
-  echo "Host group ID not found in environment. Using root (0)."
-  export HOST_GID=0
+if ! find . -mindepth 1 | read -r; then
+    echo "Creating default configs..."
+    cp -r /opt/cfx-server-data/* /config
+    RCON_PASS="${RCON_PASSWORD-$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 16)}"
+    sed -i "s/{RCON_PASS}/${RCON_PASS}/g" /config/server.cfg;
+    echo "----------------------------------------------"
+    echo "RCON password is set to: ${RCON_PASS}"
+    echo "----------------------------------------------"
 fi
 
-if [ -z "${FIVEM_LICENCE_KEY}" ]; then
-  echo "Licence key not found in environment, please create one at https://keymaster.fivem.net!"
-  export FIVEM_LICENCE_KEY=
+if [ -z "$NO_ONESYNC" ]; then
+    ONESYNC_ARGS="+set onesync on +set onesync_population true"
 fi
 
-if [ -z "${FIVEM_PORT}" ]; then
-  echo "FiveM port not found in environment. Using default 30120"
-  export FIVEM_PORT=30120
+CONFIG_ARGS=
+if [ -z "${NO_DEFAULT_CONFIG}" ]; then
+    CONFIG_ARGS="$CONFIG_ARGS $ONESYNC_ARGS +exec /config/server.cfg"
 fi
 
-if [ -z "${TXADMIN_PORT}" ]; then
-  echo "txAdmin port not found in environment."
-  export TXADMIN_PORT=40120
+# English is hard
+if [ -z "${NO_LICENSE_KEY}${NO_LICENCE_KEY}" ]; then
+    if [ -z "${LICENSE_KEY}" ] && [ -n "${LICENCE_KEY}" ]; then
+        LICENSE_KEY="${LICENCE_KEY}"
+    fi
+
+    if [ -z "${LICENSE_KEY}" ]; then
+        echo "License key not found in environment, please create one at https://keymaster.fivem.net!"
+        exit 1
+    fi
+
+    CONFIG_ARGS="$CONFIG_ARGS +set sv_licenseKey ${LICENSE_KEY}"
 fi
 
-if [ -z "${SERVER_PROFILE}" ]; then
-  echo "txAdmin profile not found in environment. Using dev_server"
-  export SERVER_PROFILE="dev_server"
-fi
-
-if [ -z "${MYSQL_PASSWORD}" ]; then
-  echo "Databaser password not set. Using password"
-  export MYSQL_PASSWORD="password"
-fi
-
-if [ -z "${DATABASE_SERVICE_NAME}" ]; then
-  echo "Using mariadb as sql server"
-  export DATABASE_SERVICE_NAME="fivem"
-fi
-
-if [ -z "${MYSQL_DATABASE}" ]; then
-  echo "Using FiveMESX as database name"
-  export MYSQL_DATABASE="FiveMESX"
-fi
-
-if [ -z "${FIVEM_HOSTNAME}" ]; then
-  echo "FiveM Hostname not set. Using FiveM Test Server"
-  export FIVEM_HOSTNAME="FiveM Test Server"
-fi
-
-if [ -z "${STEAM_WEBAPIKEY}" ]; then
-  echo "Steam Web API key, if you want to use Steam authentication (https://steamcommunity.com/dev/apikey)"
-  export STEAM_WEBAPIKEY=
-fi
-# Checking environments and setting defaults ----- End ----- <
-
-
-# Making fivem user and group to run the server -------------------
-if ! getent group "${HOST_GID}" | cut -d: -f1 | read; then
-  addgroup fivem -g "${HOST_GID}"
-  HOST_GROUPNAME="fivem"
-else
-  HOST_GROUPNAME=`getent group "${HOST_GID}" | cut -d: -f1`
-fi
-
-if ! getent passwd "${HOST_UID}" | cut -d: -f1 | read; then
-  adduser fivem -D -G "$HOST_GROUPNAME" --uid "$HOST_UID"
-  HOST_USERNAME="fivem"
-else
-  HOST_USERNAME=`getent passwd "${HOST_UID}" | cut -d: -f1`
-fi
-# -----------------------------------------------------------------
-
-# Copying and customizing server files -----------------------------------------
-if ! find . -mindepth 1 | read; then
-  echo -e "Creating default configs...\n"
-  cp -r /opt/cfx-server-data/* /config
-  RCON_PASS="${RCON_PASSWORD-$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 16)}"
-  sed -i "s/{RCON_PASS}/${RCON_PASS}/g" /config/server.cfg;
-  sed -i "s/{FIVEM_PORT}/${FIVEM_PORT}/g" /config/server.cfg;
-  echo "----------------------------------------------"
-  echo "Your RCON password is set to: ${RCON_PASS}"
-  echo -e "----------------------------------------------\n"
-  sed -i "s/{FIVEM_HOSTNAME}/${FIVEM_HOSTNAME}/g" /config/server.cfg;
-  sed -i "s/{STEAM_WEBAPIKEY}/${STEAM_WEBAPIKEY}/g" /config/server.cfg;
-  sed -i "s/{FIVEM_LICENCE_KEY}/${FIVEM_LICENCE_KEY}/g" /config/server.cfg;
-  sed -i "s/{MYSQL_USER}/${MYSQL_USER}/g" /config/server.cfg;
-  sed -i "s/{MYSQL_PASSWORD}/${MYSQL_PASSWORD}/g" /config/server.cfg;
-  sed -i "s/{MYSQL_DATABASE}/${MYSQL_DATABASE}/g" /config/server.cfg;
-  sed -i "s/{DATABASE_SERVICE_NAME}/${DATABASE_SERVICE_NAME}/g" /config/server.cfg;
-fi
-# -------------------------------------------------------------------------------
-
-
-# Editing and moving the sql file to the correct lacation. ----------------
-
-FILE=/opt/cfx-server-data/database.sql
-if test -f "$FILE"; then
-  sed -i "s/{MYSQL_DATABASE}/${MYSQL_DATABASE}/g" "$FILE";
-  mv "$FILE" /docker-entrypoint-initdb.d/database.sql
-  chown mysql:mysql -R /docker-entrypoint-initdb.d
-fi
-# --------------------------------------------------------------------------
-
-# Setting permissions on config folder. (Contains resources folder)
-chown "$HOST_USERNAME":"$HOST_GROUPNAME" -R /config
-# ------------------------------------------------------------------
-
-if [ -z "${FIVEM_LICENCE_KEY}" ]; then
-  echo "Licence key not found in environment, please create one at https://keymaster.fivem.net!"
-  exit 1
-fi
-
-# Making and setting permissions on txData folder ------
-mkdir -p /txData
-chown ${HOST_USERNAME}:${HOST_GROUPNAME} -R /txData
-# -------------------------------------------------------
-
-# Starting the sql database -----------------------------
-/scripts/run.sh &
-# -------------------------------------------------------
-
-# Starting fiveM servrer --------------------------------
-exec su "$HOST_USERNAME" -c "/opt/cfx-server/FXServer \
-       +set citizen_dir /opt/cfx-server/citizen/ \
-       +set serverProfile ${SERVER_PROFILE} \
-       +set txAdminPort ${TXADMIN_PORT} \
-       $@"
-# -------------------------------------------------------
+exec /opt/cfx-server/ld-musl-x86_64.so.1 \
+    --library-path "/usr/lib/v8/:/lib/:/usr/lib/" \
+    -- \
+    /opt/cfx-server/FXServer \
+        +set citizen_dir /opt/cfx-server/citizen/ \
+        $CONFIG_ARGS \
+        $*

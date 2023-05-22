@@ -1,26 +1,27 @@
-ARG FIVEM_NUM=6231
-ARG FIVEM_VER=6231-dedae82e7ad4d8d568d9e109759873d9899758bb
-ARG DATA_VER=3e8e6dfc010e87313e8be81ddb0ded5fc583624c
-FROM wodby/mariadb:latest as builder
+ARG FIVEM_NUM=6461
+ARG FIVEM_VER=6461-81a9edd141130533c77209885810a2888ffde92a
+ARG DATA_VER=0e7ba538339f7c1c26d0e689aa750a336576cf02
+
+FROM spritsail/alpine:3.17 as builder
+
 ARG FIVEM_VER
 ARG DATA_VER
 
 WORKDIR /output
-USER root
-RUN apk add --no-cache tini mariadb-dev tzdata xz \
-    && rm -f /var/cache/apk/*
-RUN wget http://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/${FIVEM_VER}/fx.tar.xz \
-        && tar -xf fx.tar.xz --strip-components=1 --exclude alpine/dev --exclude alpine/proc --exclude alpine/run --exclude alpine/sys \
-        && rm fx.tar.xz \
-        && mkdir -p opt/cfx-server-data \
-        && wget -O ${DATA_VER}.tar.gz https://codeload.github.com/citizenfx/cfx-server-data/tar.gz/${DATA_VER} \
-        && tar -zxvf ${DATA_VER}.tar.gz --strip-components=1 -C opt/cfx-server-data \
-        && rm ${DATA_VER}.tar.gz
+
+RUN wget -O- https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/${FIVEM_VER}/fx.tar.xz \
+        | tar xJ --strip-components=1 \
+            --exclude alpine/dev --exclude alpine/proc \
+            --exclude alpine/run --exclude alpine/sys \
+ && mkdir -p /output/opt/cfx-server-data /output/usr/local/share \
+ && wget -O- http://github.com/citizenfx/cfx-server-data/archive/${DATA_VER}.tar.gz \
+        | tar xz --strip-components=1 -C opt/cfx-server-data \
+    \
+ && apk -p $PWD add tini
 
 ADD server.cfg opt/cfx-server-data
-ADD resources.tar opt/cfx-server-data
-ADD database.sql opt/cfx-server-data
 ADD entrypoint usr/bin/entrypoint
+
 RUN chmod +x /output/usr/bin/entrypoint
 
 #================
@@ -31,30 +32,19 @@ ARG FIVEM_VER
 ARG FIVEM_NUM
 ARG DATA_VER
 
-LABEL org.label-schema.name="FiveM" \
+LABEL maintainer="Spritsail <fivem@spritsail.io>" \
+      org.label-schema.vendor="Spritsail" \
+      org.label-schema.name="FiveM" \
       org.label-schema.url="https://fivem.net" \
       org.label-schema.description="FiveM is a modification for Grand Theft Auto V enabling you to play multiplayer on customized dedicated servers." \
-      org.label-schema.version=${FIVEM_NUM}
+      org.label-schema.version=${FIVEM_NUM} \
+      io.spritsail.version.fivem=${FIVEM_VER} \
+      io.spritsail.version.fivem_data=${DATA_VER}
 
 COPY --from=builder /output/ /
 
-
-
 WORKDIR /config
-
-RUN apk add --no-cache mariadb mariadb-client mariadb-server-utils pwgen tzdata tini && \
-    rm -f /var/cache/apk/*
-
-ADD files/run.sh /scripts/run.sh
-RUN mkdir /docker-entrypoint-initdb.d && \
-    mkdir /scripts/pre-exec.d && \
-    mkdir /scripts/pre-init.d && \
-    chmod -R 755 /scripts
-
-EXPOSE 3306
 EXPOSE 30120
-
-VOLUME ["/var/lib/mysql"]
 
 # Default to an empty CMD, so we can use it to add seperate args to the binary
 CMD [""]
