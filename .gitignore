@@ -1,6 +1,4 @@
 txData
 mysql_data
-FiveM/*
-!FiveM/server.cfg
-!FiveM/resources
+FiveM
 .env
