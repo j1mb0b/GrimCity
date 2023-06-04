@@ -7,8 +7,7 @@ services:
    stdin_open: true
    tty: true
    volumes:
-     - /mnt/c/Users/jamie/Projects/NewLife/FiveM:/config
-     - /mnt/c/Users/jamie/Projects/NewLife/txData:/txData
+     - /mnt/c/Users/jamie/Projects/GrimCity/gta5-fivem-txadmin:/txData
    ports:
      - 30120:30120
      - 30120:30120/udp
@@ -22,11 +21,12 @@ services:
   mariadb:
    image: mariadb
    volumes:
-     - "/mnt/c/Users/jamie/Projects/NewLife/mysql_data:/var/lib/mysql"
+     - "/mnt/c/Users/jamie/Projects/GrimCity/mysql_data:/var/lib/mysql"
    environment:
      MYSQL_DATABASE: $DB_NAME
      MYSQL_USER: $DB_USER
      MYSQL_PASSWORD: $DB_PASS
+     MYSQL_ROOT_PASSWORD: $DB_PASS
      MYSQL_RANDOM_ROOT_PASSWORD: 0
      TZ: Europe/Brussels
 
